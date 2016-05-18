@@ -176,10 +176,11 @@ public class WxMessageController {
 				
 		ApiConfig apiConfig = apiConfigService.gogetApiConfig() ;
 		String token = apiConfig.getToken();
-		System.out.println("----appid=="+apiConfig.getAppid() );	
-		System.out.println("----appsecret=="+apiConfig.getAppsecret() );
-		System.out.println("----encodingaeskey=="+apiConfig.getEncodingaeskey() );
-		System.out.println("----token=="+token );
+		//System.out.println("----appid=="+apiConfig.getAppid() );	
+		//System.out.println("----appsecret=="+apiConfig.getAppsecret() );
+		//System.out.println("----encodingaeskey=="+apiConfig.getEncodingaeskey() );
+		//System.out.println("----token=="+token );
+		
 		//String s1 = apiConfigService.getAppid();
 		//String s2 = apiConfigService.getAppsecret();
 		//System.out.println("----0000==s1=="+s1 );
