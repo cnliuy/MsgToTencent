@@ -242,13 +242,13 @@ public class HttpKit {
 		try {
 			StringBuilder result = new StringBuilder();
 			br = req.getReader();
-			System.out.println("-------br-----"+br.toString());
+			//System.out.println("-------br-----"+br.toString());
 			for (String line=null; (line=br.readLine())!=null;) {
 				result.append(line).append("\n");
 			}
 			
 			
-			System.out.println("-------br2-----"+result.toString());
+			//System.out.println("-------br2-----"+result.toString());
 			return result.toString();
 		} catch (IOException e) {
 			throw new RuntimeException(e);

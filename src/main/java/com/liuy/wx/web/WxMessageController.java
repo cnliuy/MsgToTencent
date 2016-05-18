@@ -105,7 +105,7 @@ public class WxMessageController {
 
 		if (inMsgXml == null) {
 			inMsgXml = HttpKit.readIncommingRequestData(req);
-			System.out.println("-------WxMessageController in getInMsgXml():"+inMsgXml);
+			//System.out.println("-------WxMessageController in getInMsgXml():"+inMsgXml);
 			// 是否需要解密消息
 			if (ApiConfigKitbb.getApiConfig().isMessageencrypt()) {
 				inMsgXml = msgEncryptKit.decrypt(inMsgXml,timestamp,nonce,msg_signature);
@@ -193,94 +193,113 @@ public class WxMessageController {
 		//ApiConfig result = new ApiConfig("");			
 		//ApiConfig ac = ApiConfigKit.getApiConfig();
 	
-		System.out.println("接收消息:");		
-		String timestamp = request.getParameter("timestamp");
-		System.out.println("timestamp:"+timestamp);
-		String nonce = request.getParameter("nonce");
-		System.out.println("nonce:"+nonce);
+		System.out.println("----- Tencent to our server :");		
+		String timestamp = request.getParameter("timestamp");//形如 1463560919		
+		String nonce = request.getParameter("nonce");//形如 1564646726
 		//signature  msg_signature
-		String msg_signature = request.getParameter("signature");	
-		System.out.println("msg_signature:"+msg_signature);
-//		try {
-//			BufferedReader reader1111 = request.getReader();
-//			System.out.print("reader1111:"+reader1111.toString());
-//		} catch (IOException e) {
-//			
-//			e.printStackTrace();
-//		}
+		String msg_signature = request.getParameter("signature");//形如　3ee86b5ba77773dcb766ba8c7d99c8ec9e698e30
+		String echostr = request.getParameter("echostr"); //微信配置时的, 回显信息。 形如 1026258608909709302
+		
+		//System.out.println("timestamp:"+timestamp);
+		//System.out.println("nonce:"+nonce);
+		//System.out.println("msg_signature:"+msg_signature);
+		//System.out.println("echostr:"+echostr);
+		//		try {
+		//			BufferedReader reader1111 = request.getReader();
+		//			System.out.print("reader1111:"+reader1111.toString());
+		//		} catch (IOException e) {
+		//			
+		//			e.printStackTrace();
+		//		}
+		String resultStr = "" ; //将要返回的信息
+		
+		//判断腾讯传送的信息内容的规范性
+		
 		if (StrKit.isBlank(msg_signature) || StrKit.isBlank(timestamp) || StrKit.isBlank(nonce)) {
+			//---- 传送的信息 非标准 
 			//--controller.renderText("check signature failure");
-			//--return false;
-		}
-		
-		
-		if (checkSignature(token ,msg_signature, timestamp, nonce)) {
-			System.out.println("-------ture----");
-		}
-		String echostr = request.getParameter("echostr");
-		
-		
-		BufferedReader rd;
-		try {
-			rd = request.getReader();
-			String str123;
-			while ( (str123=rd.readLine())!=null) {
-				System.out.println("000:  "+str123);
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+			//--return false;			
+			resultStr = "check signature failure" ;
+		}else{
+			//---- 传送的信息 标准 OK的
+			
+			//-------  进行签名校验机制 
+			if (checkSignature(token ,msg_signature, timestamp, nonce)) {
+				System.out.println("-------签名校验成功 OK----");
+				
+				System.out.println("-------输入信息 start----");
+				BufferedReader rd;
+				try {
+					rd = request.getReader();
+					String str123;
+					while ( (str123=rd.readLine())!=null) {
+						System.out.println("---:  "+str123);
+					}
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				System.out.println("-------输入信息 end  ----");
+				
+				String inmsgXml00= getInMsgXml(request,timestamp,nonce,msg_signature) ;		
+				System.out.println("inmsgXml00:");
+				System.out.println(inmsgXml00);
+				System.out.println("腾讯的传入内容，可在此处存入数据库");
+				
+				if( StrKit.isBlank(inmsgXml00) ){
+					//返回配置时需要的校验信息
+					resultStr = echostr ;
+//					inmsgXml00="<xml><ToUserName><![CDATA[gh_7e89261c75cf]]></ToUserName>"
+//					+ "<FromUserName><![CDATA[oNxqNwR4ydOPSZNAFtIHJ28-zmL4]]></FromUserName>"
+//					+ "<CreateTime>1460792070</CreateTime>"
+//					+ "<MsgType><![CDATA[event]]></MsgType>"
+//					+ "<Event><![CDATA[unsubscribe]]></Event>"
+//					+ "<EventKey><![CDATA[]]></EventKey>"
+//					+ "</xml>";					
+				}else{
+					//腾讯方向 有输入信息来
+					
+					// 解析消息并根据消息类型分发到相应的处理方法					
+					InMsg msg = InMsgParaser.parse(inmsgXml00); 
+					System.out.println("========== 消息类型 ======"+msg.getMsgType());
+					
+					if (msg instanceof InTextMsg){
+						//System.out.println("in---------");
+						resultStr = processInTextMsg((InTextMsg)msg , timestamp , nonce);	
+					}		
+					if (msg instanceof InTextMsg)
+						resultStr = processInTextMsg((InTextMsg)msg , timestamp , nonce);	
+					else if (msg instanceof InImageMsg)
+						resultStr = processInImageMsg((InImageMsg)msg , timestamp , nonce);
+					else if (msg instanceof InVoiceMsg)
+						resultStr = processInVoiceMsg((InVoiceMsg)msg, timestamp , nonce);
+					else if (msg instanceof InVideoMsg)
+						resultStr = processInVideoMsg((InVideoMsg)msg, timestamp , nonce);
+					else if (msg instanceof InLocationMsg)
+						resultStr = processInLocationMsg((InLocationMsg)msg, timestamp , nonce);
+					else if (msg instanceof InLinkMsg)
+						resultStr = processInLinkMsg((InLinkMsg)msg, timestamp , nonce);
+					else if (msg instanceof InFollowEvent)
+						resultStr = processInFollowEvent((InFollowEvent)msg, timestamp , nonce);
+					else if (msg instanceof InQrCodeEvent)
+						resultStr = processInQrCodeEvent((InQrCodeEvent)msg, timestamp , nonce);
+					else if (msg instanceof InLocationEvent)
+						resultStr = processInLocationEvent((InLocationEvent)msg, timestamp , nonce);
+					else if (msg instanceof InMenuEvent)
+						resultStr = processInMenuEvent((InMenuEvent)msg, msg, timestamp , nonce);
+					else if (msg instanceof InSpeechRecognitionResults)
+						resultStr = processInSpeechRecognitionResults((InSpeechRecognitionResults)msg, msg, timestamp , nonce);
+					else{
+						resultStr = "未能识别的消息类型。 消息 xml 内容为：\n" +inmsgXml00;
+						System.out.println("未能识别的消息类型。 消息 xml 内容为：\n" +inmsgXml00);	
+					}					
+					System.out.println("resultStr:"+resultStr);
+					
+				}		
+			}		
 
+		}	
 		
-		String inmsgXml00= getInMsgXml(request,timestamp,nonce,msg_signature) ;		
-		System.out.println("inmsgXml00:"+inmsgXml00);		
-		System.out.println("可在此处存入数据库");
-		inmsgXml00="<xml><ToUserName><![CDATA[gh_7e89261c75cf]]></ToUserName>"
-				+ "<FromUserName><![CDATA[oNxqNwR4ydOPSZNAFtIHJ28-zmL4]]></FromUserName>"
-				+ "<CreateTime>1460792070</CreateTime>"
-				+ "<MsgType><![CDATA[event]]></MsgType>"
-				+ "<Event><![CDATA[unsubscribe]]></Event>"
-				+ "<EventKey><![CDATA[]]></EventKey>"
-				+ "</xml>";
-		// 解析消息并根据消息类型分发到相应的处理方法
-		
-		InMsg msg = InMsgParaser.parse(inmsgXml00); 
-		//System.out.println("222====="+msg.getMsgType());
-		String resultStr = "" ;
-		if (msg instanceof InTextMsg){
-			System.out.println("in---------");
-			resultStr = processInTextMsg((InTextMsg)msg , timestamp , nonce);	
-		}		
-		if (msg instanceof InTextMsg)
-			resultStr = processInTextMsg((InTextMsg)msg , timestamp , nonce);	
-		else if (msg instanceof InImageMsg)
-			resultStr = processInImageMsg((InImageMsg)msg , timestamp , nonce);
-		else if (msg instanceof InVoiceMsg)
-			resultStr = processInVoiceMsg((InVoiceMsg)msg, timestamp , nonce);
-		else if (msg instanceof InVideoMsg)
-			resultStr = processInVideoMsg((InVideoMsg)msg, timestamp , nonce);
-		else if (msg instanceof InLocationMsg)
-			resultStr = processInLocationMsg((InLocationMsg)msg, timestamp , nonce);
-		else if (msg instanceof InLinkMsg)
-			resultStr = processInLinkMsg((InLinkMsg)msg, timestamp , nonce);
-		else if (msg instanceof InFollowEvent)
-			resultStr = processInFollowEvent((InFollowEvent)msg, timestamp , nonce);
-		else if (msg instanceof InQrCodeEvent)
-			resultStr = processInQrCodeEvent((InQrCodeEvent)msg, timestamp , nonce);
-		else if (msg instanceof InLocationEvent)
-			resultStr = processInLocationEvent((InLocationEvent)msg, timestamp , nonce);
-		else if (msg instanceof InMenuEvent)
-			resultStr = processInMenuEvent((InMenuEvent)msg, msg, timestamp , nonce);
-		else if (msg instanceof InSpeechRecognitionResults)
-			resultStr = processInSpeechRecognitionResults((InSpeechRecognitionResults)msg, msg, timestamp , nonce);
-		else{
-			resultStr = "未能识别的消息类型。 消息 xml 内容为：\n" +inmsgXml00;
-			System.out.println("未能识别的消息类型。 消息 xml 内容为：\n" +inmsgXml00);	
-		}
-		
-		
-		System.out.println("resultStr:"+resultStr);
-		resultStr=echostr;;
+		//resultStr=echostr;;
 		return resultStr;
 	}
 	
